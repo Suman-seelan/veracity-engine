@@ -1,4 +1,8 @@
 import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import GlassCard from "@/components/GlassCard";
+import ScrollReveal from "@/components/ScrollReveal";
+import PageTransition from "@/components/PageTransition";
 
 const mockHistory = [
   { id: 1, text: "Scientists discover new renewable energy source that could power millions...", label: "REAL" as const, confidence: 0.92, date: "2026-03-02 14:23", model: "RoBERTa-base" },
@@ -10,53 +14,65 @@ const mockHistory = [
 
 const HistoryPage = () => {
   return (
-    <div className="container max-w-4xl py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Prediction History</h1>
-        <p className="mt-1 text-muted-foreground">Recent analyses and their results</p>
-      </div>
+    <PageTransition>
+      <div className="container max-w-4xl py-10">
+        <ScrollReveal>
+          <div className="mb-8">
+            <span className="mb-2 inline-block rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-medium text-primary">
+              HISTORY
+            </span>
+            <h1 className="text-3xl font-bold text-foreground">Prediction History</h1>
+            <p className="mt-1 text-muted-foreground">Recent analyses and their results</p>
+          </div>
+        </ScrollReveal>
 
-      <div className="space-y-3">
-        {mockHistory.map((item) => {
-          const isFake = item.label === "FAKE";
-          return (
-            <div
-              key={item.id}
-              className="rounded-xl border border-border bg-card p-5 shadow-card transition-shadow hover:shadow-elevated"
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                    isFake ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
-                  }`}
-                >
-                  {isFake ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm text-foreground">{item.text}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span
-                      className={`rounded-full px-2 py-0.5 font-mono font-bold ${
+        <div className="space-y-3">
+          {mockHistory.map((item, i) => {
+            const isFake = item.label === "FAKE";
+            return (
+              <ScrollReveal key={item.id} delay={i * 0.08}>
+                <GlassCard hoverScale>
+                  <div className="flex items-start gap-4">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      whileInView={{ scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.1, type: "spring" }}
+                      className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                         isFake
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-success/10 text-success"
+                          ? "bg-destructive/10 text-destructive shadow-[0_0_15px_hsl(0,72%,51%,0.15)]"
+                          : "bg-success/10 text-success shadow-[0_0_15px_hsl(142,76%,36%,0.15)]"
                       }`}
                     >
-                      {item.label} • {(item.confidence * 100).toFixed(0)}%
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {item.date}
-                    </span>
-                    <span className="font-mono">{item.model}</span>
+                      {isFake ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                    </motion.div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm text-foreground">{item.text}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span
+                          className={`rounded-full px-2 py-0.5 font-mono font-bold ${
+                            isFake
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-success/10 text-success"
+                          }`}
+                        >
+                          {item.label} • {(item.confidence * 100).toFixed(0)}%
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {item.date}
+                        </span>
+                        <span className="font-mono">{item.model}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                </GlassCard>
+              </ScrollReveal>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
