@@ -10,55 +10,67 @@ import NeuralBackground from "@/components/NeuralBackground";
 import PageTransition from "@/components/PageTransition";
 import ScrollReveal from "@/components/ScrollReveal";
 
-// Mock analysis
-const mockAnalyze = (text: string): Promise<AnalysisResult> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const fakeKeywords = ["shocking", "unbelievable", "they don't want you to know", "secret", "hoax", "conspiracy"];
-      const lowerText = text.toLowerCase();
-      const fakeScore = fakeKeywords.reduce((acc, kw) => acc + (lowerText.includes(kw) ? 0.12 : 0), 0.15 + Math.random() * 0.3);
-      const isFake = fakeScore > 0.5;
-
-      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
-      const highlights = sentences.slice(0, 3).map((s, i) => ({
-        text: s.trim(),
-        score: Math.random() * 0.5 + (isFake ? 0.4 : 0.1),
-        isMisleading: isFake && i < 2,
-      }));
-
-      resolve({
-        label: isFake ? "FAKE" : "REAL",
-        confidence: isFake ? fakeScore : 1 - fakeScore,
-        model: "RoBERTa-base + Dense Classifier",
-        processingTime: (Math.random() * 1.5 + 0.3).toFixed(2),
-        highlights,
-      });
-    }, 2000);
-  });
-};
+// ── API config ────────────────────────────────────────────────────────────────
+// Set VITE_API_URL in your .env file; defaults to the local FastAPI server.
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export type AnalysisResult = {
   label: "FAKE" | "REAL";
   confidence: number;
+  probabilities: { fake: number; real: number };
   model: string;
   processingTime: string;
   highlights: { text: string; score: number; isMisleading: boolean }[];
+};
+
+// ── Real API call ─────────────────────────────────────────────────────────────
+const analyzeWithAPI = async (
+  payload: { text?: string; url?: string }
+): Promise<AnalysisResult> => {
+  const response = await fetch(`${API_BASE}/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail ?? `API error ${response.status}`);
+  }
+
+  return response.json() as Promise<AnalysisResult>;
 };
 
 const AnalysisPage = () => {
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("text");
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
   const handleAnalyze = async () => {
-    const input = text.trim() || url.trim();
-    if (!input) return;
+    const hasText = text.trim().length > 0;
+    const hasUrl = url.trim().length > 0;
+    if (!hasText && !hasUrl) return;
+
     setLoading(true);
     setResult(null);
-    const res = await mockAnalyze(input);
-    setResult(res);
-    setLoading(false);
+    setError(null);
+
+    try {
+      const payload =
+        activeTab === "url" && hasUrl
+          ? { url: url.trim() }
+          : { text: text.trim() };
+
+      const res = await analyzeWithAPI(payload);
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -103,7 +115,11 @@ const AnalysisPage = () => {
         <section className="container -mt-8 max-w-3xl pb-20 relative z-10">
           <ScrollReveal>
             <div className="rounded-2xl border border-border/50 bg-card/40 p-6 shadow-[0_0_40px_hsl(173,80%,40%,0.08)] backdrop-blur-xl">
-              <Tabs defaultValue="text" className="w-full">
+              <Tabs
+                defaultValue="text"
+                className="w-full"
+                onValueChange={setActiveTab}
+              >
                 <TabsList className="mb-4 grid w-full grid-cols-2">
                   <TabsTrigger value="text" className="flex items-center gap-2">
                     <Type className="h-4 w-4" />
@@ -139,14 +155,14 @@ const AnalysisPage = () => {
 
               <Button
                 onClick={handleAnalyze}
-                disabled={loading || (!text.trim() && !url.trim())}
+                disabled={loading || (activeTab === "text" ? !text.trim() : !url.trim())}
                 className="mt-4 w-full rounded-xl bg-primary text-primary-foreground shadow-[0_0_20px_hsl(173,80%,40%,0.2)] hover:bg-primary/90"
                 size="lg"
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing with RoBERTa...
+                    Analyzing with DistilBERT…
                   </>
                 ) : (
                   <>
@@ -168,7 +184,19 @@ const AnalysisPage = () => {
               <div className="relative h-1 w-48 overflow-hidden rounded-full bg-secondary">
                 <div className="absolute inset-0 animate-scan-line rounded-full bg-primary" />
               </div>
-              <p className="text-sm">Processing semantic embeddings...</p>
+              <p className="text-sm">Processing semantic embeddings…</p>
+            </motion.div>
+          )}
+
+          {/* Error state */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
             </motion.div>
           )}
 
